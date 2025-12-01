@@ -161,7 +161,7 @@ export const login = async (req, res) => {
     }
 
     // Generate token (single token, no refresh)
-    const token = generateAccessToken(user.id, "User");
+    const token = generateAccessToken(user.id, "User.id,user.name,user.email,user.profilePic");
 
     // Return token in response
     res.status(200).json({

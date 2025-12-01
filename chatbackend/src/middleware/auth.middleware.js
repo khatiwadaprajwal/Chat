@@ -72,57 +72,33 @@ const REFRESH_SECRET = process.env.REFRESH_SECRET;
   }
 };*/
 
+
 const isLoggedIn = async (req, res, next) => {
   try {
-    // Get token from Authorization header
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ 
-        message: "Unauthorized: No token provided" 
-      });
+      return res.status(401).json({ message: "Unauthorized: No token provided" });
     }
 
     const token = authHeader.split(" ")[1];
-
-    // Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    // Get user from database
-    const user = await prisma.user.findUnique({ 
-      where: { id: decoded.sub } 
+    // FIX HERE
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },  // <---- USE decoded.id
     });
 
     if (!user) {
-      return res.status(401).json({ 
-        message: "User not found" 
-      });
+      return res.status(401).json({ message: "User not found" });
     }
 
-    // Attach user to request
     req.user = user;
     next();
 
   } catch (err) {
-    if (err.name === "TokenExpiredError") {
-      return res.status(401).json({ 
-        message: "Token expired. Please login again." 
-      });
-    }
-    
-    if (err.name === "JsonWebTokenError") {
-      return res.status(401).json({ 
-        message: "Invalid token" 
-      });
-    }
-
-    console.error("AUTH MIDDLEWARE ERROR:", err);
-    return res.status(401).json({ 
-      message: "Unauthorized" 
-    });
+    console.error("AUTH ERROR:", err);
+    return res.status(401).json({ message: "Unauthorized" });
   }
 };
-
-
-
 export default isLoggedIn;
