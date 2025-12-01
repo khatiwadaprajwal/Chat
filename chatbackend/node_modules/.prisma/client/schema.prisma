@@ -7,21 +7,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================
+// USER & AUTH MODELS
+// ============================
+
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
+  id         Int        @id @default(autoincrement())
+  name       String
+  email      String     @unique
+  password   String
+  profilePic String?
+  createdAt  DateTime   @default(now())
+  lastSeen   DateTime?
 
-  profilePic String?   // 👈 ADD THIS LINE
-
-  messages  Message[]
-  chats     ChatMember[]
+  messages         Message[]
+  chats            ChatMember[]
+  sentRequests     FriendRequest[] @relation("sentRequests")
+  receivedRequests FriendRequest[] @relation("receivedRequests")
 }
 
-
-
+// Temporary user table for OTP before signup
 model TempUser {
   id               Int      @id @default(autoincrement())
   name             String
@@ -35,42 +40,86 @@ model TempUser {
   createdAt        DateTime @default(now())
 }
 
-
+// OTP for login / reset password
 model Otp {
-  id              Int      @id @default(autoincrement())
-  email           String   @unique
-  otp             String
-  otpAttempts     Int      @default(0)
-  isBlacklisted   Boolean  @default(false)
+  id               Int      @id @default(autoincrement())
+  email            String   @unique
+  otp              String
+  otpAttempts      Int      @default(0)
+  isBlacklisted    Boolean  @default(false)
   blacklistedUntil DateTime?
-  otpExpires      DateTime
-  createdAt       DateTime @default(now())
+  otpExpires       DateTime
+  createdAt        DateTime @default(now())
 }
 
+// ============================
+// FRIEND REQUEST SYSTEM
+// ============================
+
+model FriendRequest {
+  id         Int      @id @default(autoincrement())
+
+  senderId   Int
+  sender     User     @relation("sentRequests", fields: [senderId], references: [id])
+
+  receiverId Int
+  receiver   User     @relation("receivedRequests", fields: [receiverId], references: [id])
+
+  status     FriendRequestStatus @default(PENDING)
+  createdAt  DateTime            @default(now())
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+// ============================
+// CHAT & MESSAGES
+// ============================
 
 model Chat {
   id        Int          @id @default(autoincrement())
-  type      String       // 'private' or 'group'
-  name      String?      // only for group chats
+  type      ChatType
+  name      String?
+  createdAt DateTime     @default(now())
+
   messages  Message[]
   members   ChatMember[]
-  createdAt DateTime     @default(now())
+}
+
+enum ChatType {
+  PRIVATE
+  GROUP
 }
 
 model ChatMember {
   id      Int   @id @default(autoincrement())
-  chat    Chat  @relation(fields: [chatId], references: [id])
+
   chatId  Int
-  user    User  @relation(fields: [userId], references: [id])
+  chat    Chat  @relation(fields: [chatId], references: [id])
+
   userId  Int
+  user    User  @relation(fields: [userId], references: [id])
+
+  role    ChatRole @default(MEMBER)
+}
+
+enum ChatRole {
+  ADMIN
+  MEMBER
 }
 
 model Message {
   id        Int      @id @default(autoincrement())
-  chat      Chat     @relation(fields: [chatId], references: [id])
+
   chatId    Int
-  sender    User     @relation(fields: [senderId], references: [id])
+  chat      Chat     @relation(fields: [chatId], references: [id])
+
   senderId  Int
+  sender    User     @relation(fields: [senderId], references: [id])
+
   text      String
   createdAt DateTime @default(now())
 }

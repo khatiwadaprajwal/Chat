@@ -10,7 +10,7 @@ dotenv.config();
 export const generateAccessToken = (userId, accountType) => {
   try {
     return jwt.sign(
-      { sub: userId, accountType },
+      { id: userId, accountType }, // id must match middleware
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
