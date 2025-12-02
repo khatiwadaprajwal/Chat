@@ -54,7 +54,7 @@ export const getUserByEmail = async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, name: true, email: true, createdAt: true },
+      select: { id: true, name: true, email: true,profilePic:true, createdAt: true },
     });
 
     if (!user) return res.status(404).json({ message: "User not found" });
