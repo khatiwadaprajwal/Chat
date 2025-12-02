@@ -25,7 +25,7 @@ const Login = () => {
 
       if (res.ok) {
         login(data.user, data.token);
-        navigate("/dashboard");
+        navigate("/chat");
       } else setError(data.message || "Login failed");
     } catch {
       setError("Network error. Please try again.");

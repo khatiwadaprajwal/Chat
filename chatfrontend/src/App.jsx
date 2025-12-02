@@ -5,6 +5,7 @@ import Signup from "./pages/auth/signup";
 import VerifyOTP from "./pages/auth/verifyotp";
 import SendOTP from "./pages/auth/sendotp";
 import ResetPassword from "./pages/auth/forgotpassword";
+import Chat from "./pages/chat";
 
 
 
@@ -20,6 +21,7 @@ const App = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/send-otp" element={<SendOTP />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/chat" element={<Chat />} />
             
           </Routes>
         </div>
