@@ -82,11 +82,24 @@ const isLoggedIn = async (req, res, next) => {
     }
 
     const token = authHeader.split(" ")[1];
+    
+    // 2. VERIFY TOKEN
     const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Debug: See what is actually inside your token
+    console.log("🔑 Decoded Token:", decoded); 
 
-    // FIX HERE
+    // 3. HANDLE DIFFERENT ID NAMES
+    // Sometimes tokens are signed with 'id', 'userId', or 'sub'. We check all.
+    const userId = decoded.id || decoded.userId || decoded.sub;
+
+    if (!userId) {
+      console.log("❌ Token valid, but no ID found in payload");
+      return res.status(401).json({ message: "Invalid token structure" });
+    }
+
     const user = await prisma.user.findUnique({
-      where: { id: decoded.id },  // <---- USE decoded.id
+      where: { id: parseInt(userId) }, // Ensure it's a number (Prisma is strict)
     });
 
     if (!user) {
@@ -97,8 +110,9 @@ const isLoggedIn = async (req, res, next) => {
     next();
 
   } catch (err) {
-    console.error("AUTH ERROR:", err);
-    return res.status(401).json({ message: "Unauthorized" });
+    console.error("AUTH ERROR:", err.message);
+    return res.status(401).json({ message: "Unauthorized: Invalid Token" });
   }
 };
+
 export default isLoggedIn;
