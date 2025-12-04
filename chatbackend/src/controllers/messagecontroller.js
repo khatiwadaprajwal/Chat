@@ -52,3 +52,32 @@ export const getMessages = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+export const deleteAllConversation = async (req, res) => {
+  try {
+    const userId = Number(req.user.id);
+    const friendId = Number(req.params.friendId);
+
+    if (!friendId) return res.status(400).json({ message: "Friend ID required" });
+
+    // 1. Find the chat between the two users
+    const chat = await prisma.chat.findFirst({
+      where: {
+        type: "PRIVATE",
+        AND: [
+          { members: { some: { userId: userId } } },
+          { members: { some: { userId: friendId } } },
+        ],
+      },
+    });
+
+    if (!chat) return res.status(404).json({ message: "Chat not found" });
+
+    // 2. Delete all messages in that chat
+    await prisma.message.deleteMany({ where: { chatId: chat.id } });
+
+    res.status(200).json({ message: "All conversation deleted successfully" });
+  } catch (error) {
+    console.error("❌ deleteAllConversation error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
