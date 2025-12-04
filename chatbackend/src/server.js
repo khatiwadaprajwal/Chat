@@ -3,17 +3,16 @@ import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { createServer } from "http";
-import { connectDB } from "./config/db.js"; // If you still use this for raw SQL, otherwise remove
+import { connectDB } from "./config/db.js"; 
 import routes from "./routes/index.js";
-import { initializeSocket } from "./config/socket.js"; // Import the new function
+import { initializeSocket } from "./config/socket.js"; 
 import "./utils/nodecorn.js";
 
 dotenv.config();
 
 const app = express();
-const server = createServer(app); // Wrap Express
+const server = createServer(app);
 
-// Initialize Socket.io (Logic is now in config/socket.js)
 initializeSocket(server);
 
 app.use(cors({
