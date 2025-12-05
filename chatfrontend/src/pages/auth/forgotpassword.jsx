@@ -12,6 +12,8 @@ const ResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+    const API_URL = `http://${window.location.hostname}:5000/v1`
+
 
   // Load email from URL
   useEffect(() => {
@@ -30,7 +32,8 @@ const ResetPassword = () => {
     setMessage("");
 
     try {
-      const res = await fetch("http://localhost:5000/v1/reset-password", {
+      // ✅ FIXED: Used backticks (`)
+      const res = await fetch(`${API_URL}/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

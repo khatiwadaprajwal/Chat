@@ -8,6 +8,7 @@ const SendOTP = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const API_URL = `http://${window.location.hostname}:5000/v1`
 
   const handleSendOtp = async () => {
     if (!email) return setError("Email is required");
@@ -17,7 +18,8 @@ const SendOTP = () => {
     setMessage("");
 
     try {
-      const res = await fetch("http://localhost:5000/v1/send-otp", {
+      // ✅ FIXED: Used backticks (`)
+      const res = await fetch(`${API_URL}/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

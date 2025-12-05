@@ -1,117 +1,66 @@
-// middleware/isLoggedIn.js
 import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
+import { generateAccessToken } from "../utils/token.js";
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET;
 const REFRESH_SECRET = process.env.REFRESH_SECRET;
 
-/*const isLoggedIn = async (req, res, next) => {
+const isLoggedIn = async (req, res, next) => {
   try {
-    
-    let accessToken = req.headers.authorization?.split(" ")[1];
+    // 1. Check for Token in Header
+    const authHeader = req.headers.authorization;
+    let accessToken = authHeader && authHeader.split(" ")[1];
     const refreshToken = req.cookies?.refreshToken;
 
     if (!accessToken && !refreshToken) {
       return res.status(401).json({ message: "Unauthorized: No token provided" });
     }
 
-    
+    // 2. Try to Verify Access Token
     if (accessToken) {
       try {
         const decoded = jwt.verify(accessToken, JWT_SECRET);
-        const user = await prisma.user.findUnique({ where: { id: decoded.sub } });
+        const user = await prisma.user.findUnique({ where: { id: parseInt(decoded.id) } });
         
-        if (!user) {
-          return res.status(401).json({ message: "User not found" });
-        }
+        if (!user) return res.status(401).json({ message: "User not found" });
         
         req.user = user;
-        return next();
+        return next(); // Success!
       } catch (err) {
-        // If it's not an expired token error, return unauthorized
         if (err.name !== "TokenExpiredError") {
-          return res.status(401).json({ message: "Invalid access token" });
+          return res.status(401).json({ message: "Invalid token" });
         }
-        // Access token expired, continue to check refresh token
+        // If expired, fall through to step 3
       }
     }
 
-    // 3️⃣ Verify refresh token if access token expired or missing
+    // 3. Access Token Expired? Check Refresh Token
     if (refreshToken) {
       try {
         const decoded = jwt.verify(refreshToken, REFRESH_SECRET);
-        const user = await prisma.user.findUnique({ where: { id: decoded.sub } });
-        
-        if (!user) {
-          return res.status(401).json({ message: "User not found" });
-        }
+        const user = await prisma.user.findUnique({ where: { id: parseInt(decoded.id) } });
 
-        // Generate new access token
-        const newAccessToken = jwt.sign(
-          { sub: user.id, accountType: decoded.accountType },
-          JWT_SECRET,
-          { expiresIn: "30m" }
-        );
+        if (!user) return res.status(401).json({ message: "User not found" });
 
-        // Attach new access token in header for client to update
-        res.setHeader("x-access-token", newAccessToken);
+        // Generate NEW Access Token
+        const newAccessToken = generateAccessToken(user.id, decoded.accountType || "User");
+
+        // Send new token in header (Frontend should update this if possible, but requests will succeed for now)
+        res.setHeader("x-new-access-token", newAccessToken);
         
         req.user = user;
         return next();
       } catch (err) {
-        return res.status(401).json({ message: "Invalid or expired refresh token" });
+        return res.status(401).json({ message: "Session expired. Please login again." });
       }
     }
 
-    // If no valid token
-    return res.status(401).json({ message: "Unauthorized: Invalid token" });
-  } catch (err) {
-    console.error("AUTH MIDDLEWARE ERROR:", err);
     return res.status(401).json({ message: "Unauthorized" });
-  }
-};*/
-
-
-const isLoggedIn = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "Unauthorized: No token provided" });
-    }
-
-    const token = authHeader.split(" ")[1];
-    
-    // 2. VERIFY TOKEN
-    const decoded = jwt.verify(token, JWT_SECRET);
-    
-    // Debug: See what is actually inside your token
-    console.log("🔑 Decoded Token:", decoded); 
-
-    // 3. HANDLE DIFFERENT ID NAMES
-    // Sometimes tokens are signed with 'id', 'userId', or 'sub'. We check all.
-    const userId = decoded.id || decoded.userId || decoded.sub;
-
-    if (!userId) {
-      console.log("❌ Token valid, but no ID found in payload");
-      return res.status(401).json({ message: "Invalid token structure" });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: parseInt(userId) }, // Ensure it's a number (Prisma is strict)
-    });
-
-    if (!user) {
-      return res.status(401).json({ message: "User not found" });
-    }
-
-    req.user = user;
-    next();
 
   } catch (err) {
-    console.error("AUTH ERROR:", err.message);
-    return res.status(401).json({ message: "Unauthorized: Invalid Token" });
+    console.error("Auth Middleware Error:", err);
+    return res.status(500).json({ message: "Internal Auth Error" });
   }
 };
 

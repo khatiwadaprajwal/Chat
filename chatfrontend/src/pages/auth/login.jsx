@@ -10,13 +10,18 @@ const Login = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
+  // ✅ DEFINE API URL HERE (Using Backticks)
+  const API_URL = `http://${window.location.hostname}:5000/v1`
+ 
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
-      const res = await fetch("http://localhost:5000/v1/auth/login", {
+      // ✅ USE BACKTICKS (`) OR THE VARIABLE HERE
+      const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -27,8 +32,9 @@ const Login = () => {
         login(data.user, data.token);
         navigate("/chat");
       } else setError(data.message || "Login failed");
-    } catch {
-      setError("Network error. Please try again.");
+    } catch (err) {
+      console.error("Login Error:", err);
+      setError("Network error. Please check your connection.");
     } finally {
       setLoading(false);
     }
@@ -66,7 +72,6 @@ const Login = () => {
           </Button>
         </form>
 
-        {/* 🔥 ADDED RESET PASSWORD LINK HERE */}
         <p
           className="text-center text-blue-600 mt-4 cursor-pointer hover:underline font-medium"
           onClick={() => navigate("/send-otp")}
@@ -74,7 +79,6 @@ const Login = () => {
           Forgot Password?
         </p>
 
-        {/* Existing Sign Up text */}
         <p className="text-center text-gray-500 mt-2">
           Don't have an account?{" "}
           <span

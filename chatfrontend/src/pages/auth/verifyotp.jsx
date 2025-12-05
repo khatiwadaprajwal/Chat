@@ -9,6 +9,7 @@ const VerifyOTP = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const email = location.state?.email;
+  const BASE_URL = `http://${window.location.hostname}:5000/v1`;
 
   const handleVerify = async (e) => {
     e.preventDefault();
@@ -16,7 +17,8 @@ const VerifyOTP = () => {
     setError("");
 
     try {
-      const res = await fetch("http://localhost:5000/v1/auth/verify-otp", {
+      // ✅ FIXED: Used backticks (`)
+      const res = await fetch(`${BASE_URL}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp }),
@@ -36,7 +38,9 @@ const VerifyOTP = () => {
   return (
     <div className="min-h-screen bg-blue-300 flex items-center justify-center px-4">
       <div className="bg-white shadow-xl rounded-2xl p-10 max-w-md w-full">
-        <h1 className="text-3xl font-bold text-center text-blue-600 mb-6">Verify OTP</h1>
+        <h1 className="text-3xl font-bold text-center text-blue-600 mb-6">
+          Verify OTP
+        </h1>
         {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
 
         <form onSubmit={handleVerify} className="space-y-4">

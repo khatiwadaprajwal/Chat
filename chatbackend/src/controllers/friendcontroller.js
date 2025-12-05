@@ -1,5 +1,4 @@
 import { PrismaClient } from "@prisma/client";
-import { error } from "console";
 const prisma = new PrismaClient();
 
 export const sendRequest = async (req, res) => {
@@ -20,32 +19,42 @@ export const sendRequest = async (req, res) => {
     if (receiver.id === senderId)
       return res.status(400).json({ message: "Cannot add yourself" });
 
-    // Check existing pending request
-    const existing = await prisma.friendRequest.findFirst({
-      where: {
-        senderId,
-        receiverId: receiver.id,
-        status: "PENDING",
-      },
-    });
-
-    if (existing)
-      return res.status(400).json({ message: "Request already sent" });
-
-    // Check if already friends
-    const accepted = await prisma.friendRequest.findFirst({
+    // Check for ANY existing interaction between these two
+    const existingRequest = await prisma.friendRequest.findFirst({
       where: {
         OR: [
-          { senderId, receiverId: receiver.id, status: "ACCEPTED" },
-          { senderId: receiver.id, receiverId: senderId, status: "ACCEPTED" },
+          { senderId: senderId, receiverId: receiver.id },
+          { senderId: receiver.id, receiverId: senderId },
         ],
       },
     });
 
-    if (accepted)
-      return res.status(400).json({ message: "Already friends" });
+    if (existingRequest) {
+      // 1. If already friends
+      if (existingRequest.status === "ACCEPTED") {
+        return res.status(400).json({ message: "Already friends" });
+      }
 
-    // Create new friend request
+      // 2. If request is pending
+      if (existingRequest.status === "PENDING") {
+        return res.status(400).json({ message: "Request already sent/pending" });
+      }
+
+      // 3. ✅ IF REJECTED: Reactivate it (Update status to PENDING)
+      if (existingRequest.status === "REJECTED") {
+        await prisma.friendRequest.update({
+          where: { id: existingRequest.id },
+          data: {
+            status: "PENDING",
+            senderId: senderId,    // Ensure sender is the current user
+            receiverId: receiver.id // Ensure receiver is the target
+          },
+        });
+        return res.json({ message: "Friend request sent again" });
+      }
+    }
+
+    // 4. If no interaction exists, create new
     await prisma.friendRequest.create({
       data: {
         senderId,
@@ -95,6 +104,7 @@ export const acceptRequest = async (req, res) => {
     res.status(500).json({ message: "Server error", err });
   }
 };
+
 export const rejectRequest = async (req, res) => {
   const { requestId } = req.body;
 
@@ -109,26 +119,38 @@ export const rejectRequest = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-export const cancelRequest = async (req, res) => {
-  const { senderId, receiverId } = req.body;
 
+
+export const cancelRequest = async (req, res) => {
   try {
-    await prisma.friendRequest.deleteMany({
+    const senderId = req.user.id; // <-- Securely get from Token
+    const { receiverId } = req.body; // We only need the ID of who we sent it to
+
+    if (!receiverId) return res.status(400).json({ message: "Receiver ID required" });
+
+    // Delete the request where YOU are the sender and it is PENDING
+    const result = await prisma.friendRequest.deleteMany({
       where: {
-        senderId,
-        receiverId,
+        senderId: senderId,
+        receiverId: receiverId,
         status: "PENDING",
       },
     });
 
+    if (result.count === 0) {
+        return res.status(404).json({ message: "No pending request found to cancel" });
+    }
+
     res.json({ message: "Friend request canceled" });
-  } catch {
+  } catch (err) {
+    console.error("CANCEL ERROR", err);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 export const pendingRequests = async (req, res) => {
   try {
-    const userId = req.user.id; // <-- from token
+    const userId = req.user.id; 
 
     const requests = await prisma.friendRequest.findMany({
       where: {
@@ -150,7 +172,7 @@ export const pendingRequests = async (req, res) => {
 
 export const listFriends = async (req, res) => {
   try {
-    const userId = req.user.id; // <-- from token
+    const userId = req.user.id;
 
     const friends = await prisma.friendRequest.findMany({
       where: {
@@ -171,7 +193,7 @@ export const listFriends = async (req, res) => {
 
 export const sentRequests = async (req, res) => {
   try {
-    const userId = req.user.id; // Logged-in user
+    const userId = req.user.id;
 
     const requests = await prisma.friendRequest.findMany({
       where: {
@@ -179,7 +201,7 @@ export const sentRequests = async (req, res) => {
         status: "PENDING",
       },
       include: {
-        receiver: true, // include receiver details
+        receiver: true, 
       },
     });
 
