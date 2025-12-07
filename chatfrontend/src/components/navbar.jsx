@@ -5,7 +5,10 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
-const ChatNavbar = () => {
+// 🔔 OPTIONAL: Add a notification sound file
+// const notificationSound = new Audio('/notification.mp3'); 
+
+const ChatNavbar = ({ socket }) => {
   const { token, user: authUser, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   
@@ -38,9 +41,7 @@ const ChatNavbar = () => {
   const searchRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // ✅ FIXED: Used backticks (`)
-  //const BASE_URL = `http://${window.location.hostname}:5000/v1`;
-  const BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/v1`
+  const BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/v1`;
 
   // --- Helpers & API Calls ---
   const getAuthHeader = (isMultipart = false) => {
@@ -60,7 +61,12 @@ const ChatNavbar = () => {
     try {
       if (!token) return;
       const email = user?.email || authUser?.email;
-      const response = await fetch(`${BASE_URL}/users/${email}`, { headers: getAuthHeader() });
+      if (!email) return;
+      
+      const response = await fetch(`${BASE_URL}/users/${email}`, { 
+        headers: getAuthHeader(),
+        credentials: 'include' 
+      });
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
@@ -73,8 +79,8 @@ const ChatNavbar = () => {
     try {
       if (!token) return;
       const [pendingRes, sentRes] = await Promise.all([
-        fetch(`${BASE_URL}/friends/pending`, { headers: getAuthHeader() }),
-        fetch(`${BASE_URL}/friends/sent`, { headers: getAuthHeader() })
+        fetch(`${BASE_URL}/friends/pending`, { headers: getAuthHeader(), credentials: 'include' }),
+        fetch(`${BASE_URL}/friends/sent`, { headers: getAuthHeader(), credentials: 'include' })
       ]);
       if (pendingRes.ok) setPendingRequests(await pendingRes.json());
       if (sentRes.ok) setSentRequests(await sentRes.json());
@@ -84,13 +90,59 @@ const ChatNavbar = () => {
   const fetchFriendsList = useCallback(async () => {
     try {
       if (!token) return;
-      const response = await fetch(`${BASE_URL}/friends/list`, { headers: getAuthHeader() });
+      const response = await fetch(`${BASE_URL}/friends/list`, { 
+        headers: getAuthHeader(),
+        credentials: 'include' 
+      });
       if (response.ok) {
         const data = await response.json();
         setFriendsList(Array.isArray(data) ? data : []);
       }
     } catch (error) { console.error('Error fetching friends list:', error); }
   }, [token, BASE_URL]);
+
+
+  // ==========================================
+  // ⚡ SOCKET.IO EVENT LISTENERS (REAL-TIME LOGIC)
+  // ==========================================
+  useEffect(() => {
+    if (!socket) return;
+
+    // 1. Receive a new Friend Request (WITHOUT REFRESH)
+    const handleNewRequest = (requestData) => {
+        console.log("⚡ Real-time Request Received:", requestData);
+        
+        // This updates the React State immediately, causing the red dot to appear
+        setPendingRequests((prev) => [requestData, ...prev]);
+        
+        // Optional: Play sound
+        // notificationSound.play().catch(e => console.log(e));
+    };
+
+    // 2. Someone Accepted MY Request
+    const handleRequestAccepted = ({ friendId, friendName }) => {
+        // Update UI immediately
+        setSentRequests((prev) => prev.filter(req => req.receiverId !== friendId));
+        fetchFriendsList(); // Fetch list to show new friend in dropdown
+        alert(`🎉 ${friendName} accepted your friend request!`);
+    };
+
+    // 3. Someone Canceled a Request sent to ME
+    const handleRequestCanceled = ({ senderId }) => {
+        setPendingRequests((prev) => prev.filter(req => req.senderId !== senderId));
+    };
+
+    socket.on("newFriendRequest", handleNewRequest);
+    socket.on("requestAccepted", handleRequestAccepted);
+    socket.on("requestCanceled", handleRequestCanceled);
+
+    return () => {
+        socket.off("newFriendRequest", handleNewRequest);
+        socket.off("requestAccepted", handleRequestAccepted);
+        socket.off("requestCanceled", handleRequestCanceled);
+    };
+  }, [socket, fetchFriendsList]);
+
 
   // --- Actions ---
   const handleProfilePicUpdate = async (e) => {
@@ -104,6 +156,7 @@ const ChatNavbar = () => {
       const response = await fetch(`${BASE_URL}/users/profile-pic`, {
         method: 'POST',
         headers: getAuthHeader(true),
+        credentials: 'include',
         body: formData
       });
       const data = await response.json();
@@ -115,20 +168,13 @@ const ChatNavbar = () => {
     finally { setIsUploading(false); if(fileInputRef.current) fileInputRef.current.value = ''; }
   };
 
-  const handleDeleteProfilePic = async () => {
-    if(!window.confirm("Remove profile picture?")) return;
-    try {
-      const response = await fetch(`${BASE_URL}/users/profile-pic`, { method: 'DELETE', headers: getAuthHeader() });
-      if (response.ok) setUser(prev => ({ ...prev, profilePic: null }));
-    } catch (error) { console.error(error); }
-  };
-
   const handleNameUpdate = async (e) => {
     e.preventDefault();
     try {
       const response = await fetch(`${BASE_URL}/users/profile`, {
         method: 'PUT',
         headers: getAuthHeader(),
+        credentials: 'include',
         body: JSON.stringify({ name: newName })
       });
       if (response.ok) fetchUserProfile();
@@ -141,6 +187,7 @@ const ChatNavbar = () => {
       const response = await fetch(`${BASE_URL}/change-password`, {
         method: 'POST',
         headers: getAuthHeader(),
+        credentials: 'include',
         body: JSON.stringify(passwordData)
       });
       const data = await response.json();
@@ -161,7 +208,10 @@ const ChatNavbar = () => {
     setSearchMessage('');
 
     try {
-      const response = await fetch(`${BASE_URL}/users/search?query=${searchQuery}`, { headers: getAuthHeader() });
+      const response = await fetch(`${BASE_URL}/users/search?query=${searchQuery}`, { 
+        headers: getAuthHeader(),
+        credentials: 'include'
+      });
       if (response.ok) {
         const data = await response.json();
         setSearchResults(Array.isArray(data) ? data : [data]);
@@ -176,26 +226,42 @@ const ChatNavbar = () => {
     }
   };
 
+  // ⚡ SEND REQUEST
   const sendFriendRequest = async (receiverEmail) => {
     try {
       const response = await fetch(`${BASE_URL}/friends/send-request`, {
         method: 'POST',
         headers: getAuthHeader(),
+        credentials: 'include',
         body: JSON.stringify({ receiverEmail })
       });
+      const data = await response.json();
+
       if (response.ok) {
         setSearchQuery('');
         setSearchResults([]);
-        fetchRequests(); // This updates the Sent list
+        
+        // 1. Optimistic Update (Show in Sent List immediately)
+        const newReq = {
+             id: data.data.id,
+             receiverId: data.data.receiverId,
+             receiver: data.data.receiver || { name: 'User', email: receiverEmail } 
+        };
+        setSentRequests(prev => [...prev, newReq]);
+
+        // 2. Emit Socket Event (Real-time to Receiver)
+        if(socket) {
+            socket.emit("sendFriendRequest", data.data); 
+        }
+
         alert("Request Sent!");
       } else {
-        const data = await response.json();
         alert(data.message);
       }
     } catch (error) { console.error(error); }
   };
 
-  // Handle Cancel Request
+  // ⚡ CANCEL REQUEST
   const handleCancelRequest = async (receiverId) => {
     if(!confirm("Cancel this friend request?")) return;
     
@@ -203,12 +269,15 @@ const ChatNavbar = () => {
       const response = await fetch(`${BASE_URL}/friends/cancel-request`, {
         method: 'POST',
         headers: getAuthHeader(),
+        credentials: 'include',
         body: JSON.stringify({ receiverId })
       });
 
       if (response.ok) {
-        // Remove from UI immediately
         setSentRequests(prev => prev.filter(req => req.receiverId !== receiverId));
+        if(socket) {
+            socket.emit("cancelFriendRequest", { receiverId });
+        }
       } else {
         const data = await response.json();
         alert(data.message || "Failed to cancel");
@@ -218,17 +287,31 @@ const ChatNavbar = () => {
     }
   };
 
-  const respondToRequest = async (id, action) => {
+  // ⚡ ACCEPT/REJECT REQUEST
+  const respondToRequest = async (id, action, senderId) => {
     const endpoint = action === 'accept' ? '/friends/accept' : '/friends/reject';
     try {
       const response = await fetch(`${BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: getAuthHeader(),
+        credentials: 'include',
         body: JSON.stringify({ requestId: id })
       });
       if (response.ok) {
-        fetchRequests();
-        if (action === 'accept') fetchFriendsList();
+        setPendingRequests(prev => prev.filter(req => req.id !== id));
+
+        if (action === 'accept') {
+            fetchFriendsList(); 
+            // Notify Sender that we accepted
+            if(socket && senderId) {
+                socket.emit("acceptFriendRequest", { 
+                    senderId: senderId, 
+                    receiverId: user.id, 
+                    receiverName: user.name,
+                    receiverEmail: user.email
+                });
+            }
+        }
       }
     } catch (error) { console.error(error); }
   };
@@ -239,6 +322,7 @@ const ChatNavbar = () => {
     if (token) { fetchUserProfile(); fetchRequests(); fetchFriendsList(); }
   }, [token, fetchUserProfile, fetchRequests, fetchFriendsList]);
 
+  // Click Outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (notificationRef.current && !notificationRef.current.contains(event.target)) setShowNotifications(false);
@@ -337,8 +421,8 @@ const ChatNavbar = () => {
                               <p className="font-semibold text-sm text-slate-800">{req.sender?.name}</p>
                               <p className="text-xs text-slate-500 mb-2">Sent you a friend request</p>
                               <div className="flex gap-2">
-                                <button onClick={() => respondToRequest(req.id, 'accept')} className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 transition-colors shadow-sm font-medium">Accept</button>
-                                <button onClick={() => respondToRequest(req.id, 'reject')} className="text-xs bg-white border border-slate-200 text-slate-700 px-3 py-1.5 rounded-md hover:bg-slate-50 transition-colors font-medium">Decline</button>
+                                <button onClick={() => respondToRequest(req.id, 'accept', req.senderId)} className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 transition-colors shadow-sm font-medium">Accept</button>
+                                <button onClick={() => respondToRequest(req.id, 'reject', req.senderId)} className="text-xs bg-white border border-slate-200 text-slate-700 px-3 py-1.5 rounded-md hover:bg-slate-50 transition-colors font-medium">Decline</button>
                               </div>
                             </div>
                           </div>
@@ -356,7 +440,6 @@ const ChatNavbar = () => {
                                 </div>
                                 </div>
                             </div>
-                            {/* 🔥 CANCEL BUTTON */}
                             <button 
                                 onClick={() => handleCancelRequest(req.receiverId)}
                                 title="Cancel Request"

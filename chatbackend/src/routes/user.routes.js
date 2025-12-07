@@ -5,6 +5,7 @@ import {
   uploadProfilePic,
   updateProfile,
   deleteProfilePhoto,
+  
 } from '../controllers/user.controller.js';
 import isLoggedIn from '../middleware/auth.middleware.js'; 
 import upload from "../middleware/multer.middleware.js";

@@ -12,24 +12,58 @@ export const initializeSocket = (server) => {
   const userSocketMap = new Map(); // Maps userId (Number) -> socketId (String)
 
   io.on("connection", (socket) => {
-    // 1. CONNECTION SETUP
     const userId = parseInt(socket.handshake.query.userId);
 
     if (userId) {
       userSocketMap.set(userId, socket.id);
       socket.join(userId.toString());
-      console.log(`✅ User connected: ${userId} (Socket: ${socket.id})`);
+      console.log(`✅ User connected: ${userId}`);
     } else {
-      console.log(`❌ Connection attempt without userId`);
       socket.disconnect();
       return;
     }
 
     // ========================================
-    // 💬 CHAT LOGIC
+    // 👥 FRIEND REQUEST LOGIC (Notifications)
     // ========================================
+
+    // 1. Send Friend Request
+    socket.on("sendFriendRequest", (data) => {
+      const receiverId = Number(data.receiverId);
+      // Emit to the specific receiver
+      if (userSocketMap.has(receiverId)) {
+        // We pass the full request data so receiver can update UI instantly
+        io.to(receiverId.toString()).emit("newFriendRequest", data);
+      }
+    });
+
+    // 2. Accept Friend Request
+    socket.on("acceptFriendRequest", (data) => {
+      const senderId = Number(data.senderId); // The person who sent the request originally
+      const receiverId = Number(data.receiverId); // The person accepting (current user)
+
+      // Notify the original sender that their request was accepted
+      if (userSocketMap.has(senderId)) {
+        io.to(senderId.toString()).emit("requestAccepted", { 
+           friendId: receiverId, 
+           friendName: data.receiverName, // You can pass more info if needed
+           friendEmail: data.receiverEmail
+        });
+      }
+    });
+
+    // 3. Cancel Friend Request
+    socket.on("cancelFriendRequest", (data) => {
+      const receiverId = Number(data.receiverId);
+      if (userSocketMap.has(receiverId)) {
+         // Tell receiver to remove it from their "Received" list
+         io.to(receiverId.toString()).emit("requestCanceled", { senderId: userId });
+      }
+    });
     
-    // ... (Your existing sendMessage logic here) ...
+    // ========================================
+    // 💬 CHAT LOGIC (Existing)
+    // ========================================
     socket.on("sendMessage", async ({ senderId, receiverId, text }) => {
       try {
         const sId = Number(senderId);
@@ -71,7 +105,6 @@ export const initializeSocket = (server) => {
         });
 
         io.to(rId.toString()).emit("receiveMessage", newMessage);
-        // Also emit back to sender to confirm saved (optional if you handle optimistic UI)
         socket.emit("messageSent", newMessage); 
         
       } catch (error) {
@@ -79,81 +112,55 @@ export const initializeSocket = (server) => {
       }
     });
 
-    // 👇👇👇 NEW DELETE MESSAGE LOGIC 👇👇👇
     socket.on("deleteMessage", async ({ messageId, receiverId }) => {
       try {
         const msgId = Number(messageId);
         const rId = Number(receiverId);
 
-        console.log(`🗑️ Request to delete message: ${msgId}`);
-
-        // 1. Verify ownership (Security: Only sender can delete)
         const message = await prisma.message.findUnique({
           where: { id: msgId }
         });
 
         if (!message) return;
-        if (message.senderId !== userId) {
-          console.log("⚠️ Unauthorized delete attempt");
-          return;
-        }
+        if (message.senderId !== userId) return;
 
-        // 2. Delete from Database
         await prisma.message.delete({
           where: { id: msgId }
         });
 
-        // 3. Notify Receiver (Real-time removal)
-        if (rId) {
-          io.to(rId.toString()).emit("messageDeleted", msgId);
-        }
-
-        // 4. Notify Sender (Real-time removal)
+        if (rId) io.to(rId.toString()).emit("messageDeleted", msgId);
         socket.emit("messageDeleted", msgId);
-
-        console.log(`✅ Message ${msgId} deleted successfully`);
-
       } catch (error) {
         console.error("❌ Error deleting message:", error);
       }
     });
-    // inside initializeSocket
-socket.on("deleteAllConversation", async ({ receiverId }) => {
-  try {
-    const rId = Number(receiverId);
 
-    // Find chat
-    const chat = await prisma.chat.findFirst({
-      where: {
-        type: "PRIVATE",
-        AND: [
-          { members: { some: { userId: userId } } },
-          { members: { some: { userId: rId } } },
-        ],
-      },
+    socket.on("deleteAllConversation", async ({ receiverId }) => {
+      try {
+        const rId = Number(receiverId);
+        const chat = await prisma.chat.findFirst({
+          where: {
+            type: "PRIVATE",
+            AND: [
+              { members: { some: { userId: userId } } },
+              { members: { some: { userId: rId } } },
+            ],
+          },
+        });
+
+        if (!chat) return;
+
+        await prisma.message.deleteMany({ where: { chatId: chat.id } });
+        socket.emit("conversationDeleted", chat.id);
+        if (rId) io.to(rId.toString()).emit("conversationDeleted", chat.id);
+      } catch (error) {
+        console.error("❌ deleteAllConversation Socket error:", error);
+      }
     });
-
-    if (!chat) return;
-
-    await prisma.message.deleteMany({ where: { chatId: chat.id } });
-
-    // Notify both sender and receiver
-    socket.emit("conversationDeleted", chat.id);
-    if (rId) io.to(rId.toString()).emit("conversationDeleted", chat.id);
-    
-  } catch (error) {
-    console.error("❌ deleteAllConversation Socket error:", error);
-  }
-});
-
-    
-
 
     // ========================================
     // 📞 WEBRTC SIGNALING LOGIC
     // ========================================
-    // ... (Your existing call logic remains unchanged) ...
-
     socket.on("callUser", (data) => {
       const receiverId = Number(data.userToCall);
       if (userSocketMap.has(receiverId)) {
@@ -161,7 +168,7 @@ socket.on("deleteAllConversation", async ({ receiverId }) => {
             signal: data.signalData, 
             from: data.from, 
             name: data.name,
-            isVideoEnabled: data.isVideoEnabled // Ensure this is passed
+            isVideoEnabled: data.isVideoEnabled 
           });
       }
     });

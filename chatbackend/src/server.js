@@ -14,23 +14,40 @@ const app = express();
 const server = createServer(app);
 
 // Initialize Socket.io
-initializeSocket(server);
+
 
 // ============================================
 // ✅ UPDATED CORS CONFIGURATION
 // ============================================
 app.use(
-  cors({
-    origin: (origin, callback) => {
+ cors({
+ origin: (origin, callback) => {
       callback(null, origin || "*");
-    },
+     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
-  })
-);
+    allowedHeaders: ["Content-Type", "Authorization"]
+   })
+ );
+// ... imports
+
+// app.use(
+//   cors({
+//     // Replace with your exact Frontend URL (usually http://localhost:5173 for Vite)
+//     origin: ["http://localhost:5173", "http://127.0.0.1:5173"], 
+//     credentials: true, // ✅ Required for Cookies to work
+//     methods: ["GET", "POST", "PUT", "DELETE"],
+//     allowedHeaders: ["Content-Type", "Authorization"], // ✅ Explicitly allow Auth headers
+//   })
+// );
+
+
+
+
 
 app.use(express.json());
 app.use(cookieParser());
+
 
 // Connect DB 
 connectDB();
@@ -47,6 +64,7 @@ app.get("/test", (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
+initializeSocket(server);
 
 // ============================================
 // ✅ LISTEN ON ALL NETWORK INTERFACES (0.0.0.0)
