@@ -119,11 +119,11 @@ const ChatNavbar = ({ socket }) => {
         // notificationSound.play().catch(e => console.log(e));
     };
 
-    // 2. Someone Accepted MY Request
+    
     const handleRequestAccepted = ({ friendId, friendName }) => {
-        // Update UI immediately
+        
         setSentRequests((prev) => prev.filter(req => req.receiverId !== friendId));
-        fetchFriendsList(); // Fetch list to show new friend in dropdown
+        fetchFriendsList(); 
         alert(`🎉 ${friendName} accepted your friend request!`);
     };
 

@@ -220,8 +220,7 @@ const ChatPage = () => {
       socket.off("messageDeleted");
       socket.off("conversationDeleted");
     };
-  }, [socket, authUser]); // Depend on socket state
-
+  }, [socket, authUser]); 
   const handleIncomingMessageUpdate = (msg) => {
     setFriends((prevFriends) => {
       const updatedList = prevFriends.map((friend) => {
