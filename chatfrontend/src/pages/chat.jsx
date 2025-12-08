@@ -9,7 +9,7 @@ import ActiveCallOverlay from "../components/chat/activecall";
 import Sidebar from "../components/chat/sidebar";
 import ChatWindow from "../components/chat/chatwindow";
 
-// 🎵 ADDED: Ringtone URL (Standard phone ring)
+// 🎵 Ringtone URL
 const RINGTONE_URL = "https://cdn.pixabay.com/audio/2021/08/17/audio_0318629214.mp3";
 
 const configuration = {
@@ -34,7 +34,6 @@ const formatDuration = (startTime) => {
 const ChatPage = () => {
   const { token, user: authUser } = useContext(AuthContext) || {};
 
-  // 🔴 FIX 1: Changed from useRef to useState so Navbar updates automatically
   const [socket, setSocket] = useState(null);
 
   const [friends, setFriends] = useState([]);
@@ -59,7 +58,6 @@ const ChatPage = () => {
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [isRemoteVideoEnabled, setIsRemoteVideoEnabled] = useState(true);
 
-  // const socketRef = useRef(); // REMOVED (Replaced by state above)
   const scrollRef = useRef();
   const myVideo = useRef();
   const userVideo = useRef();
@@ -67,10 +65,7 @@ const ChatPage = () => {
   const incomingCallIsVideo = useRef(true);
   const callStartTime = useRef(null);
   const callTimerInterval = useRef(null);
-  
-  // 🔔 ADDED: Ringtone Ref
   const ringtoneRef = useRef(new Audio(RINGTONE_URL));
-
   const selectedFriendRef = useRef(null);
 
   const BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/v1`;
@@ -89,7 +84,7 @@ const ChatPage = () => {
     selectedFriendRef.current = selectedFriend;
   }, [selectedFriend]);
 
-  // 🔔 ADDED: Handle Ringtone Play/Pause
+  // Handle Ringtone
   useEffect(() => {
     if (receivingCall && !callAccepted) {
       ringtoneRef.current.loop = true;
@@ -100,7 +95,7 @@ const ChatPage = () => {
     }
   }, [receivingCall, callAccepted]);
 
-  // --- Call Timer ---
+  // Call Timer
   useEffect(() => {
     if (callAccepted && callStartTime.current) {
       callTimerInterval.current = setInterval(() => {
@@ -127,22 +122,18 @@ const ChatPage = () => {
     };
   }, [callAccepted]);
 
-  // --- Socket Initialization (UPDATED) ---
+  // Socket Connection
   useEffect(() => {
     if (authUser && !socket) {
-      // Create socket connection
       const newSocket = io(SOCKET_URL, { query: { userId: authUser.id } });
-      
-      // Update State (This triggers the re-render that fixes the Navbar refresh issue)
       setSocket(newSocket);
-
       return () => {
         newSocket.disconnect();
       };
     }
   }, [authUser]);
 
-  // --- Socket Listeners (Moved to separate useEffect dependent on `socket`) ---
+  // Socket Listeners
   useEffect(() => {
     if (!socket) return;
 
@@ -169,7 +160,6 @@ const ChatPage = () => {
       }
     });
 
-    // --- Handle Incoming Messages & Deletes (Inside same effect) ---
     const handleMessage = (msg) => {
       const currentSelected = selectedFriendRef.current;
       if (!authUser) return;
@@ -221,6 +211,7 @@ const ChatPage = () => {
       socket.off("conversationDeleted");
     };
   }, [socket, authUser]); 
+  
   const handleIncomingMessageUpdate = (msg) => {
     setFriends((prevFriends) => {
       const updatedList = prevFriends.map((friend) => {
@@ -249,7 +240,7 @@ const ChatPage = () => {
     });
   };
 
-  // --- Fetch Friends ---
+  // Fetch Friends
   useEffect(() => {
     const fetchFriends = async () => {
       try {
@@ -294,7 +285,7 @@ const ChatPage = () => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // --- WebRTC Logic ---
+  // WebRTC Logic
   useEffect(() => {
     if (stream && myVideo.current) myVideo.current.srcObject = stream;
     if (remoteStream && userVideo.current) userVideo.current.srcObject = remoteStream;
@@ -308,7 +299,6 @@ const ChatPage = () => {
       });
       if (!enableVideo) {
         currentStream.getVideoTracks().forEach(track => { track.enabled = false; });
-        // 🟣 Hide self video & show avatar immediately
         if (myVideo.current) myVideo.current.style.display = "none";
       } else {
         if (myVideo.current) myVideo.current.style.display = "block";
@@ -389,11 +379,8 @@ const ChatPage = () => {
     setIsInCall(true);
     setCallAccepted(true);
     callStartTime.current = Date.now();
-    
-    // 🔔 Stop Ringtone
     ringtoneRef.current.pause();
 
-    // 🔴 FIX: RECEIVER CAMERA OFF BY DEFAULT
     const shouldEnableVideo = false; // Forced false as requested
 
     const stream = await getMediaStream(shouldEnableVideo);
@@ -411,7 +398,6 @@ const ChatPage = () => {
     await peer.setLocalDescription(answer);
 
     socket.emit("answerCall", { signal: answer, to: caller });
-    // Tell caller my video is off
     socket.emit("toggleMedia", { to: caller, type: "video", status: shouldEnableVideo });
   };
 
@@ -419,7 +405,6 @@ const ChatPage = () => {
     if (stream) stream.getTracks().forEach((track) => track.stop());
     if (connectionRef.current) { connectionRef.current.close(); connectionRef.current = null; }
     
-    // 🔔 Stop Ringtone
     ringtoneRef.current.pause();
     
     setIsVideoEnabled(false);
@@ -542,9 +527,9 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/30 overflow-hidden font-sans">
+    // 📱 Mobile Viewport Fix: Use h-[100dvh] for mobile browsers
+    <div className="h-[100dvh] flex flex-col bg-slate-50 overflow-hidden font-sans relative">
       
-      {/* ✅ FIX 2: PASSED SOCKET TO NAVBAR */}
       <ChatNavbar socket={socket} />
 
       {receivingCall && !callAccepted && (
@@ -579,28 +564,38 @@ const ChatPage = () => {
         />
       )}
 
-      <div className="flex flex-1 pt-16 container max-w-7xl mx-auto h-full shadow-2xl rounded-lg overflow-hidden my-0 md:my-4 bg-white">
-        <Sidebar
-          friends={friends}
-          selectedFriend={selectedFriend}
-          onSelectFriend={handleSelectFriend}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-        />
+      {/* 📱 Main Content Container - Fits below fixed Navbar */}
+      <div className="flex-1 flex overflow-hidden pt-16 relative w-full h-full">
+        <div className="w-full h-full md:max-w-7xl md:mx-auto md:h-[calc(100vh-5rem)] md:my-auto md:shadow-2xl md:rounded-2xl bg-white flex overflow-hidden border-t md:border border-slate-200">
+          
+          {/* 📱 Sidebar: Hidden on mobile when friend selected. Fixed width on desktop. */}
+          <div className={`${selectedFriend ? 'hidden md:flex' : 'flex w-full'} md:w-80 lg:w-96 flex-shrink-0 border-r border-slate-100 bg-white h-full z-10`}>
+            <Sidebar
+              friends={friends}
+              selectedFriend={selectedFriend}
+              onSelectFriend={handleSelectFriend}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+            />
+          </div>
 
-        <ChatWindow
-          selectedFriend={selectedFriend}
-          messages={messages}
-          authUser={authUser}
-          newMessage={newMessage}
-          setNewMessage={setNewMessage}
-          onSendMessage={handleSendMessage}
-          onCallUser={callUser}
-          onDeleteMessage={handleDeleteMessage}
-          onDeleteConversation={handleDeleteConversation}
-          onBack={() => setSelectedFriend(null)}
-          scrollRef={scrollRef}
-        />
+          {/* 📱 ChatWindow: Full width on mobile when selected. Fills remaining space on desktop. */}
+          <div className={`${selectedFriend ? 'flex w-full' : 'hidden md:flex flex-1'} h-full bg-white relative z-0`}>
+            <ChatWindow
+              selectedFriend={selectedFriend}
+              messages={messages}
+              authUser={authUser}
+              newMessage={newMessage}
+              setNewMessage={setNewMessage}
+              onSendMessage={handleSendMessage}
+              onCallUser={callUser}
+              onDeleteMessage={handleDeleteMessage}
+              onDeleteConversation={handleDeleteConversation}
+              onBack={() => setSelectedFriend(null)}
+              scrollRef={scrollRef}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

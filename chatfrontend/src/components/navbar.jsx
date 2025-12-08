@@ -336,39 +336,40 @@ const ChatNavbar = ({ socket }) => {
   return (
     <>
       <nav className="fixed w-full top-0 z-50 h-16 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm transition-all duration-300">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
-          <div className="flex justify-between items-center h-full gap-6">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-full">
+          <div className="flex justify-between items-center h-full gap-2 sm:gap-6">
             
             {/* Logo */}
             <div className="flex items-center flex-shrink-0 cursor-pointer" onClick={() => navigate('/')}>
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-2 shadow-blue-200 shadow-lg">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-0 sm:mr-2 shadow-blue-200 shadow-lg">
                 <span className="text-white font-bold text-lg">C</span>
               </div>
-              <h1 className="text-slate-800 text-xl font-bold tracking-tight">Chat<span className="text-blue-600">App</span></h1>
+              {/* Text hidden on small screens to make room for search */}
+              <h1 className="hidden sm:block text-slate-800 text-xl font-bold tracking-tight">Chat<span className="text-blue-600">App</span></h1>
             </div>
 
             {/* Search Bar */}
-            <div className="flex-1 max-w-lg relative search-container group" ref={searchRef}>
+            <div className="flex-1 max-w-lg relative search-container group mx-2 sm:mx-0" ref={searchRef}>
               <form onSubmit={handleSearch} className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <div className="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none">
                   {isSearching ? <Loader2 className="h-4 w-4 text-blue-500 animate-spin" /> : <Search className="h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />}
                 </div>
                 <input
                   type="text"
-                  className="block w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white transition-all duration-300 shadow-inner focus:shadow-md"
-                  placeholder="Search people by email..."
+                  className="block w-full pl-8 sm:pl-10 pr-4 py-2 bg-slate-100 border-none rounded-full text-xs sm:text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white transition-all duration-300 shadow-inner focus:shadow-md"
+                  placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </form>
               
               {(searchResults.length > 0 || searchMessage) && (
-                <div className="absolute mt-3 w-full bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute mt-3 w-full bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden py-2 animate-in fade-in slide-in-from-top-2 duration-200 z-[60]">
                   {searchMessage && <p className="p-4 text-sm text-slate-500 text-center">{searchMessage}</p>}
                   {searchResults.map((result, idx) => (
                     <div key={idx} className="flex items-center justify-between p-3 hover:bg-slate-50 transition-colors cursor-pointer group px-4">
                       <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-100 to-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs ring-2 ring-white shadow-sm">
+                        <div className="w-9 h-9 flex-shrink-0 rounded-full bg-gradient-to-tr from-blue-100 to-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs ring-2 ring-white shadow-sm">
                           {getInitials(result.name || result.email)}
                         </div>
                         <div className="min-w-0">
@@ -376,7 +377,7 @@ const ChatNavbar = ({ socket }) => {
                           <p className="text-xs text-slate-500 truncate">{result.email}</p>
                         </div>
                       </div>
-                      <button onClick={() => sendFriendRequest(result.email)} className="bg-slate-900 text-white p-2 rounded-full hover:bg-blue-600 hover:scale-105 transition-all shadow-md group-hover:shadow-lg">
+                      <button onClick={() => sendFriendRequest(result.email)} className="bg-slate-900 text-white p-2 rounded-full hover:bg-blue-600 hover:scale-105 transition-all shadow-md group-hover:shadow-lg flex-shrink-0">
                         <UserPlus className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -386,23 +387,23 @@ const ChatNavbar = ({ socket }) => {
             </div>
 
             {/* Right Side Icons */}
-            <div className="flex items-center space-x-3 sm:space-x-5">
+            <div className="flex items-center space-x-2 sm:space-x-5">
               
               {/* Notifications */}
               <div className="relative" ref={notificationRef}>
                 <button 
                   onClick={() => setShowNotifications(!showNotifications)} 
-                  className={`p-2.5 rounded-full transition-all duration-200 relative ${showNotifications ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}
+                  className={`p-2 sm:p-2.5 rounded-full transition-all duration-200 relative ${showNotifications ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}
                 >
                   <Bell className="w-5 h-5" />
                   {pendingRequests.length > 0 && (
-                    <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
+                    <span className="absolute top-2 right-2 sm:right-2.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
                   )}
                 </button>
                 
                 {/* Notification Dropdown */}
                 {showNotifications && (
-                  <div className="absolute right-0 mt-3 w-80 bg-white rounded-xl shadow-2xl ring-1 ring-black ring-opacity-5 overflow-hidden origin-top-right animate-in fade-in zoom-in-95 duration-200 z-50">
+                  <div className="absolute right-[-3rem] sm:right-0 mt-3 w-72 sm:w-80 bg-white rounded-xl shadow-2xl ring-1 ring-black ring-opacity-5 overflow-hidden origin-top-right animate-in fade-in zoom-in-95 duration-200 z-50">
                     <div className="flex border-b border-slate-100 bg-slate-50/50">
                       <button onClick={() => setActiveTab('received')} className={`flex-1 py-3 text-xs font-semibold uppercase tracking-wide transition-colors ${activeTab === 'received' ? 'text-blue-600 border-b-2 border-blue-600 bg-white' : 'text-slate-500 hover:bg-slate-100'}`}>
                         Received
@@ -455,11 +456,11 @@ const ChatNavbar = ({ socket }) => {
                 )}
               </div>
 
-              {/* Profile Section (Unchanged) */}
+              {/* Profile Section */}
               <div className="relative" ref={profileRef}>
                 <button 
                   onClick={() => setShowProfileMenu(!showProfileMenu)} 
-                  className={`flex items-center gap-2.5 border transition-all duration-200 rounded-full p-1 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${showProfileMenu ? 'bg-blue-50 border-blue-200 ring-2 ring-blue-100' : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}
+                  className={`flex items-center gap-2.5 border transition-all duration-200 rounded-full p-1 pr-1 sm:pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${showProfileMenu ? 'bg-blue-50 border-blue-200 ring-2 ring-blue-100' : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}
                 >
                   <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center font-semibold overflow-hidden shrink-0 shadow-sm ring-2 ring-white">
                     {user?.profilePic ? (
@@ -474,7 +475,7 @@ const ChatNavbar = ({ socket }) => {
                 </button>
 
                 {showProfileMenu && (
-                  <div className="absolute right-0 mt-3 w-72 bg-white rounded-xl shadow-2xl ring-1 ring-black ring-opacity-5 overflow-hidden origin-top-right animate-in fade-in zoom-in-95 duration-200 z-50">
+                  <div className="absolute right-0 mt-3 w-64 sm:w-72 bg-white rounded-xl shadow-2xl ring-1 ring-black ring-opacity-5 overflow-hidden origin-top-right animate-in fade-in zoom-in-95 duration-200 z-50">
                     <div className="p-5 bg-gradient-to-br from-slate-50 to-white border-b border-slate-100">
                       <p className="font-bold text-slate-900 text-base">{user?.name || authUser?.name}</p>
                       <p className="text-sm text-slate-500 truncate">{user?.email || authUser?.email}</p>
@@ -531,12 +532,12 @@ const ChatNavbar = ({ socket }) => {
         </div>
       </nav>
 
-      {/* Settings Modal (Unchanged) */}
+      {/* Settings Modal */}
       {showSettingsModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setShowSettingsModal(false)}></div>
           
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-200 relative z-10 flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-200 relative z-10 flex flex-col max-h-[85vh]">
             <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <div>
                 <h2 className="text-xl font-bold text-slate-900">Account Settings</h2>

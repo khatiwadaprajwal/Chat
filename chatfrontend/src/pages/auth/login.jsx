@@ -10,7 +10,7 @@ const Login = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  // ✅ DEFINE API URL HERE (Using Backticks)
+  
   const API_URL = `http://${window.location.hostname}:5000/v1`
  
 
